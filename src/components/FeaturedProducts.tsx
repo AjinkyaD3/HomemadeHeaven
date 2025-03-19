@@ -1,25 +1,53 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
+import { api } from '../services/api';
 import ProductCard from './ProductCard';
-import { products } from '../data/products';
+import LoadingSpinner from './ui/LoadingSpinner';
+import { Product } from '../types';
 
 const FeaturedProducts: React.FC = () => {
-  const featuredProducts = products.filter(product => product.featured);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await api.getProducts();
+        // Filter featured products
+        const featuredProducts = data.filter((product: Product) => product.isFeatured);
+        setProducts(featuredProducts);
+      } catch (err) {
+        setError('Failed to fetch featured products');
+        console.error('Error fetching featured products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">{error}</div>;
+  }
 
   return (
-    <section className="bg-white py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-8">
+    <section className="py-12 bg-gray-50">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900">Featured Products</h2>
-          <Link to="/shop" className="text-rose-600 hover:text-rose-700 flex items-center">
-            View All <ArrowRight className="ml-1 h-5 w-5" />
+          <Link to="/shop" className="text-rose-600 hover:text-rose-700 font-medium">
+            View All
           </Link>
         </div>
-        
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {featuredProducts.map(product => (
-            <ProductCard key={product.id} product={product} />
+          {products.map((product) => (
+            <ProductCard key={product._id} product={product} />
           ))}
         </div>
       </div>

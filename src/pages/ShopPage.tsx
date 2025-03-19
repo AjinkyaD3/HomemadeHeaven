@@ -1,232 +1,210 @@
-import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Filter, X } from "lucide-react";
-import ProductCard from "../components/ProductCard";
-import { products } from "../data/products";
-import { Product } from "../types";
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Filter, X, Search } from 'lucide-react';
+import ProductCard from '../components/ProductCard';
+import { api } from '../services/api';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { Product } from '../types';
+import { Input } from '../components/ui/input';
 
 const ShopPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(products);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-
-  const categoryParam = searchParams.get("category");
-  const featuredParam = searchParams.get("featured");
-
-  // Filter states
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    categoryParam
-  );
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 200]);
-  const [showCustomizable, setShowCustomizable] = useState<boolean>(false);
-  const [showInStock, setShowInStock] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [sortBy, setSortBy] = useState<'price-asc' | 'price-desc' | 'name-asc' | 'name-desc'>('name-asc');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        const data = await api.getProducts();
+        setProducts(data);
+        setFilteredProducts(data);
+      } catch (err) {
+        setError('Failed to fetch products');
+        console.error('Error fetching products:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
+
+  useEffect(() => {
+    if (!products || !products.length) return;
+
     let result = [...products];
 
-    // Apply category filter
-    if (selectedCategory && selectedCategory !== "all") {
-      result = result.filter(
-        (product) => product.category === selectedCategory
+    // Apply search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(product => 
+        product.name.toLowerCase().includes(query) || 
+        product.description.toLowerCase().includes(query)
       );
     }
 
-    // Apply featured filter
-    if (featuredParam === "true") {
-      result = result.filter((product) => product.featured);
+    // Apply category filter
+    if (selectedCategory) {
+      result = result.filter(product => product.category === selectedCategory);
     }
 
     // Apply price range filter
-    result = result.filter(
-      (product) =>
-        product.price >= priceRange[0] && product.price <= priceRange[1]
+    result = result.filter(product => 
+      product.price >= priceRange[0] && product.price <= priceRange[1]
     );
 
-    // Apply customizable filter
-    if (showCustomizable) {
-      result = result.filter((product) => product.customizable);
-    }
-
-    // Apply in-stock filter
-    if (showInStock) {
-      result = result.filter((product) => product.inStock);
-    }
+    // Apply sorting
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'price-asc':
+          return a.price - b.price;
+        case 'price-desc':
+          return b.price - a.price;
+        case 'name-asc':
+          return a.name.localeCompare(b.name);
+        case 'name-desc':
+          return b.name.localeCompare(a.name);
+        default:
+          return 0;
+      }
+    });
 
     setFilteredProducts(result);
-  }, [
-    selectedCategory,
-    featuredParam,
-    priceRange,
-    showCustomizable,
-    showInStock,
-  ]);
+  }, [products, selectedCategory, priceRange, sortBy, searchQuery]);
 
-  // Update selected category when URL param changes
-  useEffect(() => {
-    setSelectedCategory(categoryParam);
-  }, [categoryParam]);
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return <div className="text-center text-red-500">{error}</div>;
+  }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-8">
-          {/* Mobile filter button */}
-          <div className="w-full md:hidden mb-4">
-            <button
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="w-full flex items-center justify-center space-x-2 bg-white p-3 rounded-md shadow-sm border border-gray-200"
-            >
-              <Filter className="h-5 w-5" />
-              <span>Filters</span>
-            </button>
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col space-y-4 md:flex-row md:justify-between md:items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Shop</h1>
+        <div className="flex items-center space-x-4">
+          <div className="relative flex-1 md:w-64">
+            <Input
+              type="text"
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 w-full"
+            />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
           </div>
-
-          {/* Sidebar filters - desktop always visible, mobile conditional */}
-          <div
-            className={`${
-              isFilterOpen ? "block" : "hidden"
-            } md:block w-full md:w-64 bg-white p-6 rounded-lg shadow-sm sticky top-24`}
+          <button
+            onClick={() => setIsFilterOpen(!isFilterOpen)}
+            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-medium text-gray-900">Filters</h2>
-              <button
-                onClick={() => setIsFilterOpen(false)}
-                className="md:hidden text-gray-400 hover:text-gray-500"
-              >
-                <X className="h-5 w-5" />
+            <Filter className="h-5 w-5" />
+            <span>Filters</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Filters Sidebar */}
+        <div
+          className={`lg:block fixed lg:relative inset-0 z-50 bg-white lg:bg-transparent transform ${
+            isFilterOpen ? 'translate-x-0' : '-translate-x-full'
+          } lg:translate-x-0 transition-transform duration-300 ease-in-out`}
+        >
+          <div className="p-6 lg:p-0">
+            <div className="flex justify-between items-center mb-6 lg:hidden">
+              <h2 className="text-xl font-semibold">Filters</h2>
+              <button onClick={() => setIsFilterOpen(false)}>
+                <X className="h-6 w-6" />
               </button>
             </div>
 
-            {/* Category filter */}
+            {/* Category Filter */}
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-900 mb-2">
-                Category
-              </h3>
+              <h3 className="font-semibold mb-3">Categories</h3>
               <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === null}
-                    onChange={() => setSelectedCategory(null)}
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    All Products
-                  </span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === "frame"}
-                    onChange={() => setSelectedCategory("frame")}
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Frames</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === "gift"}
-                    onChange={() => setSelectedCategory("gift")}
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Gifts</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === "bracelet"}
-                    onChange={() => setSelectedCategory("bracelet")}
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Bracelets</span>
-                </label>
-                {/* Add Gift Hamper Category */}
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === "gift-hamper"}
-                    onChange={() => setSelectedCategory("gift-hamper")}
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    Gift Hampers
-                  </span>
-                </label>
-                {/* Add Phone Case Category */}
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="category"
-                    checked={selectedCategory === "phoneCase"}
-                    onChange={() => setSelectedCategory("phoneCase")}
-                    className="h-4 w-4 text-rose-600 focus:ring-rose-500"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">
-                    Phone Cases
-                  </span>
-                </label>
-              </div>
-            </div>
-            {/* Other filters (price, customizable, stock) */}
-          </div>
-
-          {/* Product grid */}
-          <div className="flex-1">
-            <div className="mb-6">
-              <h1 className="text-2xl font-bold text-gray-900">
-                {selectedCategory === null
-                  ? "All Products"
-                  : selectedCategory === "frame"
-                  ? "Custom Frames"
-                  : selectedCategory === "gift"
-                  ? "Handmade Gifts"
-                  : selectedCategory === "bracelet"
-                  ? "Bracelets"
-                  : selectedCategory === "gift-hamper"
-                  ? "Gift Hampers"
-                  : selectedCategory === "phoneCase"
-                  ? "Phone Cases"
-                  : featuredParam === "true"
-                  ? "Featured Products"
-                  : "All Products"}
-              </h1>
-              <p className="text-gray-500 mt-1">
-                Showing {filteredProducts.length}{" "}
-                {filteredProducts.length === 1 ? "product" : "products"}
-              </p>
-            </div>
-
-            {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
+                <button
+                  className={`block w-full text-left px-2 py-1 rounded ${
+                    selectedCategory === null ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+                  }`}
+                  onClick={() => setSelectedCategory(null)}
+                >
+                  All
+                </button>
+                {Array.from(new Set(products.map(p => p.category))).map(category => (
+                  <button
+                    key={category}
+                    className={`block w-full text-left px-2 py-1 rounded ${
+                      selectedCategory === category ? 'bg-blue-50 text-blue-600' : 'hover:bg-gray-50'
+                    }`}
+                    onClick={() => setSelectedCategory(category)}
+                  >
+                    {category}
+                  </button>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-12 bg-white rounded-lg shadow-sm">
-                <p className="text-gray-500 text-lg">
-                  No products match your filters.
-                </p>
-                <button
-                  onClick={() => {
-                    setSelectedCategory(null);
-                    setPriceRange([0, 200]);
-                    setShowCustomizable(false);
-                    setShowInStock(true);
-                  }}
-                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500"
-                >
-                  Reset Filters
-                </button>
+            </div>
+
+            {/* Price Range Filter */}
+            <div className="mb-6">
+              <h3 className="font-semibold mb-3">Price Range</h3>
+              <div className="flex items-center space-x-4">
+                <Input
+                  type="number"
+                  value={priceRange[0]}
+                  onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
+                  placeholder="Min"
+                  className="w-24"
+                />
+                <span>to</span>
+                <Input
+                  type="number"
+                  value={priceRange[1]}
+                  onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
+                  placeholder="Max"
+                  className="w-24"
+                />
               </div>
-            )}
+            </div>
+
+            {/* Sort Options */}
+            <div>
+              <h3 className="font-semibold mb-3">Sort By</h3>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="w-full p-2 border rounded"
+              >
+                <option value="name-asc">Name (A-Z)</option>
+                <option value="name-desc">Name (Z-A)</option>
+                <option value="price-asc">Price (Low to High)</option>
+                <option value="price-desc">Price (High to Low)</option>
+              </select>
+            </div>
           </div>
+        </div>
+
+        {/* Products Grid */}
+        <div className="lg:col-span-3">
+          {filteredProducts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-gray-500">No products found matching your criteria.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product._id} product={product} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,11 +1,24 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ShoppingCart, Menu, X, Heart, Gift, Search } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Menu, X, Heart, Gift, Search, User, LogOut } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 const Navbar: React.FC = () => {
   const { totalItems } = useCart();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-50">
@@ -23,7 +36,7 @@ const Navbar: React.FC = () => {
               <Link to="/shop" className="border-transparent text-gray-500 hover:border-rose-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                 Shop
               </Link>
-              <Link to="/custom" className="border-transparent text-gray-500 hover:border-rose-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+              <Link to="/custom-order" className="border-transparent text-gray-500 hover:border-rose-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
                 Custom Orders
               </Link>
               <Link to="/about" className="border-transparent text-gray-500 hover:border-rose-500 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
@@ -32,11 +45,8 @@ const Navbar: React.FC = () => {
             </div>
           </div>
           <div className="hidden sm:ml-6 sm:flex sm:items-center">
-            <button className="p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500">
-              <span className="sr-only">Search</span>
-              <Search className="h-6 w-6" />
-            </button>
-            <Link to="/favorites" className="ml-3 p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500">
+
+            <Link to="/account/favorites" className="ml-3 p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500">
               <span className="sr-only">Favorites</span>
               <Heart className="h-6 w-6" />
             </Link>
@@ -49,6 +59,58 @@ const Navbar: React.FC = () => {
                 </span>
               )}
             </Link>
+            {user ? (
+              <div className="ml-3 relative">
+                <button
+                  onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+                  className="flex items-center text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <User className="h-6 w-6" />
+                </button>
+                {isProfileMenuOpen && (
+                  <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5">
+                    <Link
+                      to="/account/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      Profile
+                    </Link>
+                    <Link
+                      to="/account/orders"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      Orders
+                    </Link>
+                    <button
+                      onClick={() => {
+                        handleLogout();
+                        setIsProfileMenuOpen(false);
+                      }}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="ml-3 flex items-center space-x-4">
+                <Link
+                  to="/login"
+                  className="text-gray-500 hover:text-gray-700 text-sm font-medium"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="bg-rose-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-rose-700"
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
           </div>
           <div className="-mr-2 flex items-center sm:hidden">
             <button
@@ -76,7 +138,7 @@ const Navbar: React.FC = () => {
             <Link to="/shop" className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium" onClick={() => setIsMenuOpen(false)}>
               Shop
             </Link>
-            <Link to="/custom" className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium" onClick={() => setIsMenuOpen(false)}>
+            <Link to="/custom-order" className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium" onClick={() => setIsMenuOpen(false)}>
               Custom Orders
             </Link>
             <Link to="/about" className="border-transparent text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 block pl-3 pr-4 py-2 border-l-4 text-base font-medium" onClick={() => setIsMenuOpen(false)}>
@@ -89,7 +151,7 @@ const Navbar: React.FC = () => {
                 <span className="sr-only">Search</span>
                 <Search className="h-6 w-6" />
               </button>
-              <Link to="/favorites" className="flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500" onClick={() => setIsMenuOpen(false)}>
+              <Link to="/account/favorites" className="flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500" onClick={() => setIsMenuOpen(false)}>
                 <span className="sr-only">Favorites</span>
                 <Heart className="h-6 w-6" />
               </Link>
@@ -103,6 +165,24 @@ const Navbar: React.FC = () => {
                 )}
               </Link>
             </div>
+            {!user && (
+              <div className="mt-4 px-4 space-y-2">
+                <Link
+                  to="/login"
+                  className="block w-full text-center px-4 py-2 text-base font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="block w-full text-center px-4 py-2 text-base font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-md"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Sign up
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Heart, ShoppingCart, ArrowLeft, Check } from 'lucide-react';
-import { products } from '../data/products';
+import { api } from '../services/api';
 import { useCart } from '../context/CartContext';
 import ProductCard from '../components/ProductCard';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { Product } from '../types';
 
 const ProductDetailPage: React.FC = () => {
+   const backendURl = "http://localhost:5000"
   const { id } = useParams<{ id: string }>();
   const { addToCart } = useCart();
   
-  const product = products.find(p => p.id === id);
-  
+  const [product, setProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [selectedCustomizations, setSelectedCustomizations] = useState<{
     color?: string;
@@ -20,6 +22,58 @@ const ProductDetailPage: React.FC = () => {
   }>({});
   
   const [addedToCart, setAddedToCart] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (!id) {
+        setError('Invalid product ID');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const data = await api.getProduct(id);
+        setProduct(data);
+        
+        // Fetch related products based on category
+        const allProducts = await api.getProducts();
+        const related = allProducts
+          .filter(p => p.category === data.category && p._id !== id)
+          .slice(0, 4);
+        setRelatedProducts(related);
+      } catch (err) {
+        setError('Failed to fetch product details');
+        console.error('Error fetching product:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+  
+  if (loading) {
+    return <LoadingSpinner />;
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Error</h1>
+        <p className="text-gray-500 mb-8">{error}</p>
+        <Link 
+          to="/shop" 
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-rose-600 hover:bg-rose-700"
+        >
+          <ArrowLeft className="mr-2 h-5 w-5" />
+          Back to Shop
+        </Link>
+      </div>
+    );
+  }
   
   if (!product) {
     return (
@@ -43,11 +97,6 @@ const ProductDetailPage: React.FC = () => {
     setTimeout(() => setAddedToCart(false), 3000);
   };
   
-  // Get related products (same category, excluding current product)
-  const relatedProducts = products
-    .filter(p => p.category === product.category && p.id !== product.id)
-    .slice(0, 4);
-
   return (
     <div className="bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -79,7 +128,7 @@ const ProductDetailPage: React.FC = () => {
           <div className="mb-8 lg:mb-0">
             <div className="bg-gray-50 rounded-lg overflow-hidden">
               <img 
-                src={product.imageUrl} 
+                src={backendURl + product.image} 
                 alt={product.name} 
                 className="w-full h-auto object-cover"
               />
@@ -91,7 +140,7 @@ const ProductDetailPage: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
             
             <div className="flex items-center mb-4">
-              <span className="text-2xl font-bold text-gray-900">${product.price.toFixed(2)}</span>
+              <span className="text-2xl font-bold text-gray-900">₹{product.price.toFixed(2)}</span>
               {product.customizable && (
                 <span className="ml-4 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800">
                   Customizable
@@ -127,8 +176,8 @@ const ProductDetailPage: React.FC = () => {
                 
                 <div>
                   <h3 className="text-sm font-medium text-gray-500">Availability</h3>
-                  <p className={`mt-1 text-sm ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
-                    {product.inStock ? 'In Stock' : 'Out of Stock'}
+                  <p className={`mt-1 text-sm ${product.isAvailable ? 'text-green-600' : 'text-red-600'}`}>
+                    {product.isAvailable ? 'In Stock' : 'Out of Stock'}
                   </p>
                 </div>
               </div>
@@ -222,7 +271,7 @@ const ProductDetailPage: React.FC = () => {
                   value={quantity}
                   onChange={(e) => setQuantity(parseInt(e.target.value))}
                   className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-rose-500 focus:border-rose-500 sm:text-sm"
-                  disabled={!product.inStock}
+                  disabled={!product.isAvailable}
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                     <option key={num} value={num}>
@@ -235,9 +284,9 @@ const ProductDetailPage: React.FC = () => {
               <div className="w-full sm:w-2/3 flex space-x-2">
                 <button
                   onClick={handleAddToCart}
-                  disabled={!product.inStock}
+                  disabled={!product.isAvailable}
                   className={`flex-1 flex items-center justify-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white ${
-                    product.inStock 
+                    product.isAvailable 
                       ? 'bg-rose-600 hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500' 
                       : 'bg-gray-400 cursor-not-allowed'
                   }`}
@@ -272,7 +321,7 @@ const ProductDetailPage: React.FC = () => {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">You May Also Like</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {relatedProducts.map(relatedProduct => (
-                <ProductCard key={relatedProduct.id} product={relatedProduct} />
+                <ProductCard key={relatedProduct._id} product={relatedProduct} />
               ))}
             </div>
           </div>

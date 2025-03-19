@@ -1,10 +1,22 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ArrowLeft, ShoppingBag } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import toast from 'react-hot-toast';
 
 const CartPage: React.FC = () => {
+  const navigate = useNavigate();
   const { cart, removeFromCart, updateQuantity, totalPrice, clearCart } = useCart();
+
+  const handleQuantityChange = (productId: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    updateQuantity(productId, newQuantity);
+  };
+
+  const handleRemove = (productId: string) => {
+    removeFromCart(productId);
+    toast.success('Item removed from cart');
+  };
 
   if (cart.length === 0) {
     return (
@@ -56,7 +68,7 @@ const CartPage: React.FC = () => {
                           </Link>
                         </h3>
                         <p className="mt-1 text-sm text-gray-500">
-                          ${item.product.price.toFixed(2)} each
+                          ₹{item.product.price.toFixed(2)} each
                         </p>
                         
                         {item.customizations && Object.keys(item.customizations).length > 0 && (
@@ -81,7 +93,7 @@ const CartPage: React.FC = () => {
                       </div>
                       
                       <p className="text-base font-medium text-gray-900">
-                        ${(item.product.price * item.quantity).toFixed(2)}
+                        ₹{(item.product.price * item.quantity).toFixed(2)}
                       </p>
                     </div>
                     
@@ -93,7 +105,7 @@ const CartPage: React.FC = () => {
                         <select
                           id={`quantity-${item.product.id}`}
                           value={item.quantity}
-                          onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value))}
+                          onChange={(e) => handleQuantityChange(item.product.id, parseInt(e.target.value))}
                           className="max-w-full rounded-md border border-gray-300 py-1.5 text-base leading-5 font-medium text-gray-700 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 sm:text-sm"
                         >
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
@@ -106,7 +118,7 @@ const CartPage: React.FC = () => {
                       
                       <button
                         type="button"
-                        onClick={() => removeFromCart(item.product.id)}
+                        onClick={() => handleRemove(item.product.id)}
                         className="text-sm font-medium text-rose-600 hover:text-rose-500 flex items-center"
                       >
                         <Trash2 className="h-4 w-4 mr-1" />
@@ -136,7 +148,7 @@ const CartPage: React.FC = () => {
               <div className="border-t border-gray-200 pt-4">
                 <div className="flex justify-between mb-2">
                   <p className="text-sm text-gray-600">Subtotal</p>
-                  <p className="text-sm font-medium text-gray-900">${totalPrice.toFixed(2)}</p>
+                  <p className="text-sm font-medium text-gray-900">₹{totalPrice.toFixed(2)}</p>
                 </div>
                 <div className="flex justify-between mb-2">
                   <p className="text-sm text-gray-600">Shipping</p>
@@ -150,7 +162,7 @@ const CartPage: React.FC = () => {
                 <div className="border-t border-gray-200 mt-4 pt-4">
                   <div className="flex justify-between">
                     <p className="text-base font-medium text-gray-900">Order total</p>
-                    <p className="text-base font-medium text-gray-900">${totalPrice.toFixed(2)}</p>
+                    <p className="text-base font-medium text-gray-900">₹{totalPrice.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -158,6 +170,7 @@ const CartPage: React.FC = () => {
               <div className="mt-6">
                 <button
                   type="button"
+                  onClick={() => navigate('/checkout')}
                   className="w-full bg-rose-600 border border-transparent rounded-md shadow-sm py-3 px-4 text-base font-medium text-white hover:bg-rose-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-rose-500"
                 >
                   Proceed to Checkout

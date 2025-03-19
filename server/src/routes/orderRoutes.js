@@ -1,0 +1,127 @@
+import express from 'express';
+import Order from '../models/Order.js';
+import { auth } from '../middleware/auth.js';
+import { admin } from '../middleware/admin.js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+
+const router = express.Router();
+const RAZORPAY_KEY_ID="rzp_test_UUYHj33lYz4HOl"
+const RAZORPAY_KEY_SECRET="Gaq8kVcgQRRouFm5UCZFdrQM"
+// Initialize Razorpay
+const razorpay = new Razorpay({
+    key_id: RAZORPAY_KEY_ID,
+    key_secret: RAZORPAY_KEY_SECRET
+});
+
+// Create order and initiate payment
+router.post('/create', auth, async (req, res) => {
+    try {
+        const { items, totalAmount, deliveryAddress } = req.body;
+        
+        // Create Razorpay order
+        const razorpayOrder = await razorpay.orders.create({
+            amount: totalAmount * 100, // Convert to paise
+            currency: 'INR',
+            receipt: 'receipt_' + Math.random().toString(36).substring(7),
+        });
+
+        // Create order in database
+        const order = new Order({
+            user: req.user._id,
+            items,
+            totalAmount,
+            deliveryAddress,
+            paymentMethod: 'card',
+            razorpayOrderId: razorpayOrder.id,
+        });
+
+        await order.save();
+
+        res.json({
+            orderId: order._id,
+            razorpayOrderId: razorpayOrder.id,
+            amount: totalAmount * 100,
+            currency: 'INR',
+            keyId: process.env.RAZORPAY_KEY_ID,
+        });
+    } catch (error) {
+        console.error('Error creating order:', error);
+        res.status(500).json({ message: 'Error creating order' });
+    }
+});
+
+// Verify payment
+router.post('/verify-payment', auth, async (req, res) => {
+    try {
+        const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+        // Verify signature
+        const sign = razorpayOrderId + "|" + razorpayPaymentId;
+        const expectedSign = crypto
+            .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+            .update(sign)
+            .digest("hex");
+
+        if (razorpaySignature !== expectedSign) {
+            return res.status(400).json({ message: "Invalid payment signature" });
+        }
+
+        // Update order status
+        await Order.findOneAndUpdate(
+            { razorpayOrderId },
+            { 
+                paymentStatus: 'completed',
+                status: 'confirmed',
+                razorpayPaymentId
+            }
+        );
+
+        res.json({ message: "Payment verified successfully" });
+    } catch (error) {
+        console.error('Error verifying payment:', error);
+        res.status(500).json({ message: 'Error verifying payment' });
+    }
+});
+
+// Get user's orders
+router.get('/my-orders', auth, async (req, res) => {
+    try {
+        const orders = await Order.find({ user: req.user._id })
+            .populate('items.product')
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching orders' });
+    }
+});
+
+// Admin: Get all orders
+router.get('/admin/all', auth, admin, async (req, res) => {
+    try {
+        const orders = await Order.find({})
+            .populate('user', 'name email')
+            .populate('items.product')
+            .sort({ createdAt: -1 });
+        res.json(orders);
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching orders' });
+    }
+});
+
+// Admin: Update order status
+router.patch('/admin/status/:orderId', auth, admin, async (req, res) => {
+    try {
+        const { status } = req.body;
+        const order = await Order.findByIdAndUpdate(
+            req.params.orderId,
+            { status },
+            { new: true }
+        );
+        res.json(order);
+    } catch (error) {
+        res.status(500).json({ message: 'Error updating order status' });
+    }
+});
+
+export default router;
