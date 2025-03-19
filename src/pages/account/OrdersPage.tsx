@@ -8,28 +8,31 @@ import toast from 'react-hot-toast';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
 interface OrderItem {
-  productId: string;
-  name: string;
-  price: number;
+  product: {
+    _id: string;
+    name: string;
+    price: number;
+    images: string[];
+  };
   quantity: number;
-  image: string;
+  price: number;
 }
 
 interface Order {
-  id: string;
+  _id: string;
   userId: string;
   items: OrderItem[];
   total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  paymentStatus: string;
+  status: 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'canceled' | 'refunded';
+  paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+  paymentMethod: 'card' | 'netbanking' | 'wallet' | 'upi' | 'cod' | 'razorpay';
   shippingAddress: {
     street: string;
     city: string;
     state: string;
-    zipCode: string;
-    country: string;
+    pincode: string;
+    phone: string;
   };
-  paymentMethod: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,14 +44,19 @@ const OrdersPage: React.FC = () => {
 
   useEffect(() => {
     const fetchOrders = async () => {
-      if (!user) return;
+      if (!user) {
+        console.log('No user found, skipping fetch');
+        return;
+      }
       
       try {
-        const response = await api.getOrders();
+        console.log('Fetching orders for user:', user);
+        const response = await api.getUserOrders();
+        console.log('Orders response:', response);
         setOrders(response);
       } catch (error) {
         console.error('Error fetching orders:', error);
-        toast.error('Failed to load orders');
+        toast.error('Failed to fetch orders');
       } finally {
         setIsLoading(false);
       }
@@ -61,14 +69,18 @@ const OrdersPage: React.FC = () => {
     switch (status) {
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-500" />;
+      case 'confirmed':
+        return <Package className="h-5 w-5 text-blue-500" />;
       case 'processing':
         return <Package className="h-5 w-5 text-blue-500" />;
       case 'shipped':
         return <Package className="h-5 w-5 text-green-500" />;
       case 'delivered':
         return <ShoppingBag className="h-5 w-5 text-green-600" />;
-      case 'cancelled':
+      case 'canceled':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
+      case 'refunded':
+        return <AlertCircle className="h-5 w-5 text-orange-500" />;
       default:
         return <Clock className="h-5 w-5 text-gray-400" />;
     }
@@ -82,14 +94,18 @@ const OrdersPage: React.FC = () => {
     switch (status) {
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
+      case 'confirmed':
+        return 'bg-blue-100 text-blue-800';
       case 'processing':
         return 'bg-blue-100 text-blue-800';
       case 'shipped':
         return 'bg-green-100 text-green-800';
       case 'delivered':
         return 'bg-green-100 text-green-800';
-      case 'cancelled':
+      case 'canceled':
         return 'bg-red-100 text-red-800';
+      case 'refunded':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -132,14 +148,14 @@ const OrdersPage: React.FC = () => {
         <div className="bg-white shadow-sm rounded-lg overflow-hidden">
           <ul className="divide-y divide-gray-200">
             {orders.map((order) => (
-              <li key={order.id}>
-                <Link to={`/account/orders/${order.id}`} className="block hover:bg-gray-50">
+              <li key={order._id}>
+                <Link to={`/account/orders/${order._id}`} className="block hover:bg-gray-50">
                   <div className="px-4 py-4 sm:px-6">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         {getStatusIcon(order.status)}
                         <p className="ml-2 text-sm font-medium text-gray-900">
-                          Order #{order.id.slice(-6).toUpperCase()}
+                          Order #{order._id.slice(-6).toUpperCase()}
                         </p>
                       </div>
                       <div className="ml-2 flex-shrink-0 flex">

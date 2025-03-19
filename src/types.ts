@@ -1,29 +1,18 @@
 export interface Product {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   price: number;
-  imageUrl: string;
-  category: 'frame' | 'gift';
-  customizable: boolean;
-  materials: string[];
-  dimensions?: {
-    width: number;
-    height: number;
-    depth: number;
-    unit: 'cm' | 'in';
-  };
-  inStock: boolean;
+  image: string;
+  category: string;
+  stock: number;
+  isAvailable: boolean;
   featured: boolean;
-  likes?: number;
-  tags?: string[];
-  sku?: string;
-  variations?: ProductVariation[];
-  seoTitle?: string;
-  seoDescription?: string;
-  seoUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  customizable: boolean;
+  rating: number;
+  numReviews: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ProductVariation {

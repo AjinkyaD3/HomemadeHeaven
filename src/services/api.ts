@@ -110,7 +110,7 @@ export const api = {
 
   // Order endpoints
   createOrder: async (orderData: any) => {
-    return api.post('/orders', orderData);
+    return api.post('/orders/create', orderData);
   },
 
   verifyPayment: async (paymentData: any) => {
@@ -118,7 +118,7 @@ export const api = {
   },
 
   getUserOrders: async () => {
-    return api.get('/orders/user');
+    return api.get('/orders/my-orders');
   },
 
   getAllOrders: async () => {

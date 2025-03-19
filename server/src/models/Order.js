@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
-    user: {
+    userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
@@ -22,52 +22,97 @@ const orderSchema = new mongoose.Schema({
             required: true,
         },
     }],
-    totalAmount: {
+    status: {
+        type: String,
+        enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'canceled', 'refunded'],
+        default: 'pending',
+    },
+    total: {
         type: Number,
         required: true,
     },
-    status: {
-        type: String,
-        enum: ['pending', 'confirmed', 'preparing', 'ready', 'delivered', 'cancelled'],
-        default: 'pending',
+    subtotal: {
+        type: Number,
+        required: true,
     },
-    deliveryAddress: {
-        street: String,
-        city: String,
-        state: String,
-        zipCode: String,
-        country: String,
+    tax: {
+        type: Number,
+        default: 0,
     },
+    shipping: {
+        type: Number,
+        default: 0,
+    },
+    discount: {
+        type: Number,
+        default: 0,
+    },
+    couponCode: String,
     paymentStatus: {
         type: String,
-        enum: ['pending', 'completed', 'failed'],
+        enum: ['pending', 'paid', 'failed', 'refunded'],
         default: 'pending',
     },
     paymentMethod: {
         type: String,
-        enum: ['cash', 'card'],
+        enum: ['card', 'netbanking', 'wallet', 'upi', 'cod', 'razorpay'],
         required: true,
     },
-    razorpayOrderId: {
-        type: String,
+    paymentId: String,
+    razorpayOrderId: String,
+    razorpayPaymentId: String,
+    razorpaySignature: String,
+    shippingAddress: {
+        street: String,
+        city: String,
+        state: String,
+        pincode: String,
+        phone: String,
     },
-    razorpayPaymentId: {
-        type: String,
+    billingAddress: {
+        street: String,
+        city: String,
+        state: String,
+        pincode: String,
+        phone: String,
     },
+    trackingNumber: String,
+    trackingUrl: String,
     notes: String,
-    createdAt: {
-        type: Date,
-        default: Date.now,
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now,
-    }
+    statusHistory: [{
+        status: {
+            type: String,
+            enum: ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'canceled', 'refunded'],
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now,
+        },
+        note: String,
+        updatedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
+    }],
+}, {
+    timestamps: true,
 });
 
-// Update the updatedAt timestamp before saving
+// Add status to history when order status changes
 orderSchema.pre('save', function (next) {
-    this.updatedAt = Date.now();
+    if (this.isModified('status')) {
+        this.statusHistory.push({
+            status: this.status,
+            timestamp: new Date(),
+            updatedBy: this.userId,
+        });
+    }
+    next();
+});
+
+// Calculate total before saving
+orderSchema.pre('save', function (next) {
+    this.total = this.subtotal + this.tax + this.shipping - this.discount;
     next();
 });
 

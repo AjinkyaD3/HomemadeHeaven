@@ -1,4 +1,4 @@
- import express from 'express';
+import express from 'express';
 import cors from 'cors';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
@@ -27,14 +27,15 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 // Routes
 app.use('/api/products', productRoutes); // Public product routes
 app.use('/api/admin/products', productRoutes); // Admin product routes
-app.use('/api/admin/orders', orderRoutes); 
+app.use('/api/orders', orderRoutes); // Regular order routes
+app.use('/api/admin/orders', orderRoutes); // Admin order routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/handmadeheaven')
-.then(() => console.log('Connected to MongoDB'))
-.catch((err) => console.error('MongoDB connection error:', err));
+    .then(() => console.log('Connected to MongoDB'))
+    .catch((err) => console.error('MongoDB connection error:', err));
 
 // Basic route for testing
 app.get('/api/test', (req, res) => {

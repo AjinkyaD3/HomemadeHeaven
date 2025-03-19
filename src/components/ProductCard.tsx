@@ -12,7 +12,6 @@ interface ProductCardProps {
 }
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const backendURl = "http://localhost:5000"
   const { addToCart } = useCart();
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const { user } = useAuth();
@@ -42,14 +41,19 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   };
 
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.src = '/placeholder-image.jpg';
+  };
+
   return (
     <div className="group relative bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-xl">
       <Link to={`/products/${product._id}`} className="block">
         <div className="relative pb-[100%] overflow-hidden">
           <img 
-            src={backendURl + product.image} 
+            src={`${import.meta.env.VITE_API_URL}${product.image}`}
             alt={product.name} 
             className="absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 group-hover:scale-105"
+            onError={handleImageError}
           />
           {product.featured && (
             <span className="absolute top-2 left-2 bg-rose-600 text-white text-xs font-bold px-2 py-1 rounded">

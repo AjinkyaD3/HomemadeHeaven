@@ -41,25 +41,36 @@ const CheckoutPage: React.FC = () => {
 
   const initializeRazorpayPayment = async () => {
     try {
+      // Format cart items for the backend
+      const formattedItems = cart.map(item => ({
+        product: item.product._id,
+        quantity: item.quantity,
+        price: item.variation?.price ?? item.product.price,
+        name: item.product.name
+      }));
+
       // Create order on your backend
       const orderData = {
-        items: cart,
+        items: formattedItems,
         totalAmount: totalPrice,
-        deliveryAddress: address
+        deliveryAddress: address,
+        paymentMethod: 'razorpay'
       };
 
+      console.log('Sending order data:', orderData);
       const response = await api.post('/orders/create', orderData);
-      const { order } = response;
+      console.log('Order creation response:', response);
 
       const options = {
-        key: process.env.RAZORPAY_KEY_ID || 'YOUR_RAZORPAY_KEY_ID', // Replace with your key
-        amount: order.amount,
-        currency: order.currency,
-        name: 'Bolt Store',
-        description: 'Purchase from Bolt Store',
-        order_id: order.id,
+        key: response.key,
+        amount: Math.round(totalPrice * 100),
+        currency: 'INR',
+        name: 'Handmade Heaven',
+        description: 'Purchase from Handmade Heaven',
+        order_id: response.razorpayOrderId,
         handler: async (response: any) => {
           try {
+            console.log('Razorpay response:', response);
             // Verify payment on backend
             await api.post('/orders/verify-payment', {
               razorpayOrderId: response.razorpay_order_id,
@@ -70,8 +81,9 @@ const CheckoutPage: React.FC = () => {
             // Clear cart and show success message
             clearCart();
             toast.success('Payment successful! Order placed.');
-            navigate('/orders');
+            navigate('/account/orders');
           } catch (error) {
+            console.error('Payment verification error:', error);
             toast.error('Payment verification failed. Please contact support.');
           }
         },
@@ -88,6 +100,7 @@ const CheckoutPage: React.FC = () => {
       const razorpay = new window.Razorpay(options);
       razorpay.open();
     } catch (error) {
+      console.error('Payment initialization error:', error);
       toast.error('Failed to initialize payment. Please try again.');
     }
   };
@@ -220,12 +233,12 @@ const CheckoutPage: React.FC = () => {
           
           <div className="space-y-4">
             {cart.map((item) => (
-              <div key={item._id} className="flex justify-between items-center">
+              <div key={item.product._id} className="flex justify-between items-center">
                 <div>
-                  <p className="font-medium">{item.name}</p>
+                  <p className="font-medium">{item.product.name}</p>
                   <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
                 </div>
-                <p className="font-medium">₹{(item.price * item.quantity).toFixed(2)}</p>
+                <p className="font-medium">₹{((item.variation?.price ?? item.product.price) * item.quantity).toFixed(2)}</p>
               </div>
             ))}
           </div>
