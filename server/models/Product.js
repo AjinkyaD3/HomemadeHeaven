@@ -24,7 +24,24 @@ const productSchema = new mongoose.Schema({
     category: {
         type: String,
         required: [true, 'Product category is required'],
-        trim: true
+        trim: true,
+        enum: {
+            values: [
+                // Frames
+                'frame', 'photo-frame', 'wall-frame', 'table-frame', 'collage-frame', 'name-frame',
+                // Gifts
+                'gift', 'personalized-gift', 'gift-box', 'gift-hamper',
+                // Bracelets
+                'bracelet', 'personalized-bracelet', 'couple-bracelet',
+                // Phone Cases
+                'phone-case', 'custom-phone-case',
+                // Home Decor
+                'home-decor', 'wall-decor', 'table-decor',
+                // Special Occasions
+                'anniversary-special', 'birthday-special', 'wedding-special'
+            ],
+            message: '{VALUE} is not a valid category'
+        }
     },
     stock: {
         type: Number,

@@ -156,8 +156,12 @@ const OrdersPage: React.FC = () => {
                   #{order._id.slice(-6)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{order.userId.fullName}</div>
-                  <div className="text-sm text-gray-500">{order.userId.email}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {order.userId?.fullName || 'User Not Found'}
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {order.userId?.email || 'Email Not Available'}
+                  </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {format(new Date(order.createdAt), 'MMM d, yyyy')}

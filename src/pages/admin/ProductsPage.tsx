@@ -42,7 +42,21 @@ const ProductsPage: React.FC = () => {
   const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   // Add predefined categories
-  const predefinedCategories = ['frame', 'gift', 'gift-hamper', 'bracelet', 'phoneCase'];
+  const categoryGroups = {
+    'Frames': ['frame', 'photo-frame', 'wall-frame', 'table-frame', 'collage-frame', 'name-frame'],
+    'Gifts': ['gift', 'personalized-gift', 'gift-box', 'gift-hamper'],
+    'Bracelets': ['bracelet', 'personalized-bracelet', 'couple-bracelet'],
+    'Phone Cases': ['phone-case', 'custom-phone-case'],
+    'Home Decor': ['home-decor', 'wall-decor', 'table-decor'],
+    'Special Occasions': ['anniversary-special', 'birthday-special', 'wedding-special']
+  };
+
+  const formatCategoryName = (category: string) => {
+    return category
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   // ✅ Fetch products
   useEffect(() => {
@@ -194,10 +208,14 @@ const ProductsPage: React.FC = () => {
             className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500"
           >
             <option value="all">All Categories</option>
-            {predefinedCategories.map(category => (
-              <option key={category} value={category}>
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </option>
+            {Object.entries(categoryGroups).map(([group, categories]) => (
+              <optgroup key={group} label={group}>
+                {categories.map(category => (
+                  <option key={category} value={category}>
+                    {formatCategoryName(category)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
           <Link
@@ -292,10 +310,14 @@ const ProductsPage: React.FC = () => {
                     onChange={handleEditChange}
                     className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
                   >
-                    {predefinedCategories.map(category => (
-                      <option key={category} value={category}>
-                        {category.charAt(0).toUpperCase() + category.slice(1)}
-                      </option>
+                    {Object.entries(categoryGroups).map(([group, categories]) => (
+                      <optgroup key={group} label={group}>
+                        {categories.map(category => (
+                          <option key={category} value={category}>
+                            {formatCategoryName(category)}
+                          </option>
+                        ))}
+                      </optgroup>
                     ))}
                   </select>
                 </div>

@@ -4,7 +4,12 @@ export interface Product {
   description: string;
   price: number;
   image: string;
-  category: 'frame' | 'gift' | 'gift-hamper' | 'bracelet' | 'phoneCase';
+  category: 'frame' | 'photo-frame' | 'wall-frame' | 'table-frame' | 'collage-frame' | 'name-frame' |
+  'gift' | 'personalized-gift' | 'gift-box' | 'gift-hamper' |
+  'bracelet' | 'personalized-bracelet' | 'couple-bracelet' |
+  'phone-case' | 'custom-phone-case' |
+  'home-decor' | 'wall-decor' | 'table-decor' |
+  'anniversary-special' | 'birthday-special' | 'wedding-special';
   stock: number;
   isAvailable?: boolean;
   isFeatured?: boolean;

@@ -53,7 +53,21 @@ const ProductFormPage = () => {
   const navigate = useNavigate();
 
   // Add predefined categories
-  const categories: Product['category'][] = ['frame', 'gift', 'gift-hamper', 'bracelet', 'phoneCase'];
+  const categoryGroups = {
+    'Frames': ['frame', 'photo-frame', 'wall-frame', 'table-frame', 'collage-frame', 'name-frame'],
+    'Gifts': ['gift', 'personalized-gift', 'gift-box', 'gift-hamper'],
+    'Bracelets': ['bracelet', 'personalized-bracelet', 'couple-bracelet'],
+    'Phone Cases': ['phone-case', 'custom-phone-case'],
+    'Home Decor': ['home-decor', 'wall-decor', 'table-decor'],
+    'Special Occasions': ['anniversary-special', 'birthday-special', 'wedding-special']
+  };
+
+  const formatCategoryName = (category: string) => {
+    return category
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -196,10 +210,14 @@ const ProductFormPage = () => {
             onChange={handleChange} 
             className="border p-2 rounded"
           >
-            {categories.map(cat => (
-              <option key={cat} value={cat}>
-                {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/([A-Z])/g, ' $1')}
-              </option>
+            {Object.entries(categoryGroups).map(([group, categories]) => (
+              <optgroup key={group} label={group}>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>
+                    {formatCategoryName(cat)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </div>
