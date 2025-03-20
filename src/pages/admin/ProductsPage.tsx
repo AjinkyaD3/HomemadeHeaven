@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, Edit, Trash2, X } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { api } from '../../services/api';
 
 interface Product {
   _id: string;
@@ -45,19 +46,7 @@ const ProductsPage: React.FC = () => {
       setIsLoading(true);
 
       try {
-        const response = await fetch(`${BASE_URL}/products`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${localStorage.getItem('token')}`,
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await api.getProducts();
         setProducts(data);
         const uniqueCategories = Array.from(new Set(data.map((p: Product) => p.category)));
         setCategories(uniqueCategories);
@@ -77,16 +66,7 @@ const ProductsPage: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const response = await fetch(`${BASE_URL}/products/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) throw new Error(`Failed to delete: ${response.status}`);
-
+      await api.deleteProduct(id);
       setProducts((prev) => prev.filter((product) => product._id !== id));
       toast.success('Product deleted successfully');
     } catch (error: any) {
@@ -136,17 +116,16 @@ const ProductsPage: React.FC = () => {
     if (!editingProduct) return;
 
     try {
-      const response = await fetch(`${BASE_URL}/products/${editingProduct._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(editingProduct),
+      const formData = new FormData();
+      Object.entries(editingProduct).forEach(([key, value]) => {
+        if (key === 'dimensions') {
+          formData.append(key, JSON.stringify(value));
+        } else {
+          formData.append(key, value.toString());
+        }
       });
 
-      if (!response.ok) throw new Error(`Failed to update: ${response.status}`);
-
+      await api.updateProduct(editingProduct._id, formData);
       setProducts((prev) =>
         prev.map((product) =>
           product._id === editingProduct._id ? editingProduct : product
@@ -188,9 +167,13 @@ const ProductsPage: React.FC = () => {
           {filteredProducts.map((product) => (
             <div key={product._id} className="border rounded-lg shadow-md p-4">
               <img
-                src={`http://localhost:5000${product.image}`}
+                src={product.image}
                 alt={product.name}
                 className="w-full h-48 object-cover rounded-md"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.src = '/placeholder-image.jpg';
+                }}
               />
               <h2 className="text-lg font-bold mt-2">{product.name}</h2>
               <p className="text-gray-600">{product.description}</p>

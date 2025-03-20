@@ -41,29 +41,44 @@ const CheckoutPage: React.FC = () => {
 
   const initializeRazorpayPayment = async () => {
     try {
+      if (!user) {
+        toast.error('Please login to place an order');
+        navigate('/login');
+        return;
+      }
+
       // Format cart items for the backend
       const formattedItems = cart.map(item => ({
         product: item.product._id,
         quantity: item.quantity,
-        price: item.variation?.price ?? item.product.price,
-        name: item.product.name
+        price: item.variation?.price ?? item.product.price
       }));
 
       // Create order on your backend
       const orderData = {
         items: formattedItems,
-        totalAmount: totalPrice,
-        deliveryAddress: address,
-        paymentMethod: 'razorpay'
+        subtotal: totalPrice,
+        tax: 0,
+        shipping: 0,
+        discount: 0,
+        shippingAddress: address,
+        billingAddress: address,
+        paymentMethod: 'razorpay',
+        status: 'pending',
+        paymentStatus: 'pending'
       };
 
       console.log('Sending order data:', orderData);
       const response = await api.post('/orders/create', orderData);
       console.log('Order creation response:', response);
 
+      if (!response.key || !response.razorpayOrderId || !response.order) {
+        throw new Error('Invalid response from server');
+      }
+
       const options = {
         key: response.key,
-        amount: Math.round(totalPrice * 100),
+        amount: response.order.total * 100,
         currency: 'INR',
         name: 'Handmade Heaven',
         description: 'Purchase from Handmade Heaven',
@@ -88,8 +103,8 @@ const CheckoutPage: React.FC = () => {
           }
         },
         prefill: {
-          name: user?.fullName,
-          email: user?.email,
+          name: user?.fullName || '',
+          email: user?.email || '',
           contact: address.phone
         },
         theme: {

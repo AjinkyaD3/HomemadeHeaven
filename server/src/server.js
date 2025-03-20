@@ -8,6 +8,7 @@ import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+// import cartRoutes from './routes/cart.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -18,18 +19,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'http://localhost:3000'],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Routes
-app.use('/api/products', productRoutes); // Public product routes
-app.use('/api/admin/products', productRoutes); // Admin product routes
-app.use('/api/orders', orderRoutes); // Regular order routes
-app.use('/api/admin/orders', orderRoutes); // Admin order routes
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes); // Use only one order routes file
+// app.use('/api/cart', cartRoutes);
 app.use('/api/users', userRoutes);
 
 // MongoDB connection

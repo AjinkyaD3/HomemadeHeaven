@@ -14,25 +14,35 @@ export const isAdmin = (req, res, next) => {
 };
 
 export default function (req, res, next) {
-    // Get token from header
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-
-    // Check if no token
-    if (!token) {
-        return res.status(401).json({ message: 'No token, authorization denied' });
-    }
-
     try {
+        // Get token from header
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        console.log('Received token:', token);
+
+        // Check if no token
+        if (!token) {
+            console.log('No token provided');
+            return res.status(401).json({ message: 'No token, authorization denied' });
+        }
+
         // Verify token
         const decoded = jwt.verify(token, JWT_SECRET);
+        console.log('Decoded token:', decoded);
+
+        if (!decoded || !decoded.userId) {
+            console.log('Invalid token payload:', decoded);
+            return res.status(401).json({ message: 'Invalid token payload' });
+        }
 
         // Add user info to request
         req.user = {
-            id: decoded.userId,  // Map userId to id for consistency
-            role: decoded.role
+            userId: decoded.userId,
+            role: decoded.role || 'customer'
         };
+        console.log('Set user info:', req.user);
         next();
     } catch (err) {
+        console.error('Token verification error:', err);
         res.status(401).json({ message: 'Token is not valid' });
     }
 }

@@ -15,44 +15,42 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Serve uploaded files
-app.use('/uploads', express.static(join(__dirname, '../../uploads')));
-
-// Create uploads directory if it doesn't exist
-const uploadsDir = join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => console.log('Connected to MongoDB'))
-    .catch((error) => console.error('MongoDB connection error:', error));
+    .catch(err => console.error('MongoDB connection error:', err));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = 'uploads/';
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir);
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, Date.now() + '-' + file.originalname);
+    }
+});
+
+const upload = multer({ storage: storage });
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api', favoritesRoutes);
+app.use('/api/favorites', favoritesRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    if (err instanceof multer.MulterError) {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ message: 'File is too large. Maximum size is 5MB.' });
-        }
-        return res.status(400).json({ message: 'Error uploading file.' });
-    }
-    res.status(500).json({ message: 'Something went wrong!' });
-});
+// Serve uploaded files
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+app.use('/uploads', express.static(join(__dirname, '../uploads')));
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

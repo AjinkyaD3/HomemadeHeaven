@@ -6,8 +6,9 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 
 const router = express.Router();
-const RAZORPAY_KEY_ID="rzp_test_UUYHj33lYz4HOl"
-const RAZORPAY_KEY_SECRET="Gaq8kVcgQRRouFm5UCZFdrQM"
+
+const RAZORPAY_KEY_ID = "rzp_test_UUYHj33lYz4HOl"
+const RAZORPAY_KEY_SECRET = "Gaq8kVcgQRRouFm5UCZFdrQM"
 // Initialize Razorpay
 const razorpay = new Razorpay({
     key_id: RAZORPAY_KEY_ID,
@@ -18,7 +19,7 @@ const razorpay = new Razorpay({
 router.post('/create', auth, async (req, res) => {
     try {
         const { items, totalAmount, deliveryAddress } = req.body;
-        
+
         // Create Razorpay order
         const razorpayOrder = await razorpay.orders.create({
             amount: totalAmount * 100, // Convert to paise
@@ -28,10 +29,15 @@ router.post('/create', auth, async (req, res) => {
 
         // Create order in database
         const order = new Order({
-            user: req.user._id,
+            userId: req.user._id,
             items,
-            totalAmount,
-            deliveryAddress,
+            total: totalAmount,
+            subtotal: totalAmount,
+            tax: 0,
+            shipping: 0,
+            shippingAddress: deliveryAddress,
+            billingAddress: deliveryAddress,
+            paymentStatus: 'pending',
             paymentMethod: 'card',
             razorpayOrderId: razorpayOrder.id,
         });
@@ -70,8 +76,8 @@ router.post('/verify-payment', auth, async (req, res) => {
         // Update order status
         await Order.findOneAndUpdate(
             { razorpayOrderId },
-            { 
-                paymentStatus: 'completed',
+            {
+                paymentStatus: 'paid',
                 status: 'confirmed',
                 razorpayPaymentId
             }
@@ -87,7 +93,7 @@ router.post('/verify-payment', auth, async (req, res) => {
 // Get user's orders
 router.get('/my-orders', auth, async (req, res) => {
     try {
-        const orders = await Order.find({ user: req.user._id })
+        const orders = await Order.find({ userId: req.user._id })
             .populate('items.product')
             .sort({ createdAt: -1 });
         res.json(orders);
@@ -97,29 +103,37 @@ router.get('/my-orders', auth, async (req, res) => {
 });
 
 // Admin: Get all orders
-router.get('/admin/all', auth, admin, async (req, res) => {
+router.get('/admin/all', [auth, admin], async (req, res) => {
     try {
         const orders = await Order.find({})
-            .populate('user', 'name email')
+            .populate('userId', 'email fullName')
             .populate('items.product')
             .sort({ createdAt: -1 });
         res.json(orders);
     } catch (error) {
+        console.error('Error fetching admin orders:', error);
         res.status(500).json({ message: 'Error fetching orders' });
     }
 });
 
 // Admin: Update order status
-router.patch('/admin/status/:orderId', auth, admin, async (req, res) => {
+router.patch('/admin/status/:orderId', [auth, admin], async (req, res) => {
     try {
         const { status } = req.body;
         const order = await Order.findByIdAndUpdate(
             req.params.orderId,
             { status },
             { new: true }
-        );
+        ).populate('userId', 'email fullName')
+            .populate('items.product');
+
+        if (!order) {
+            return res.status(404).json({ message: 'Order not found' });
+        }
+
         res.json(order);
     } catch (error) {
+        console.error('Error updating order status:', error);
         res.status(500).json({ message: 'Error updating order status' });
     }
 });

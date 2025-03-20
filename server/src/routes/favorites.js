@@ -8,11 +8,11 @@ const router = express.Router();
 // Get user's favorite product IDs
 router.get('/users/favorites', auth, async (req, res) => {
     try {
-        console.log('Fetching favorites for user:', req.user.id);
-        const user = await User.findById(req.user.id);
+        console.log('Fetching favorites for user:', req.user.userId);
+        const user = await User.findById(req.user.userId);
 
         if (!user) {
-            console.log('User not found:', req.user.id);
+            console.log('User not found:', req.user.userId);
             return res.status(404).json({ message: 'User not found' });
         }
 
@@ -27,11 +27,11 @@ router.get('/users/favorites', auth, async (req, res) => {
 // Get user's favorite products with full details
 router.get('/users/favorites/products', auth, async (req, res) => {
     try {
-        console.log('Fetching favorite products for user:', req.user.id);
-        const user = await User.findById(req.user.id);
+        console.log('Fetching favorite products for user:', req.user.userId);
+        const user = await User.findById(req.user.userId);
 
         if (!user) {
-            console.log('User not found:', req.user.id);
+            console.log('User not found:', req.user.userId);
             return res.status(404).json({ message: 'User not found' });
         }
 
@@ -47,11 +47,11 @@ router.get('/users/favorites/products', auth, async (req, res) => {
 // Toggle favorite status for a product
 router.post('/users/favorites/:productId', auth, async (req, res) => {
     try {
-        console.log('Toggling favorite for user:', req.user.id, 'product:', req.params.productId);
-        const user = await User.findById(req.user.id);
+        console.log('Toggling favorite for user:', req.user.userId, 'product:', req.params.productId);
+        const user = await User.findById(req.user.userId);
 
         if (!user) {
-            console.log('User not found:', req.user.id);
+            console.log('User not found:', req.user.userId);
             return res.status(404).json({ message: 'User not found' });
         }
 

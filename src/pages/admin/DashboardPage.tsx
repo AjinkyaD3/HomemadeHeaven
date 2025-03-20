@@ -4,24 +4,13 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar
 } from 'recharts';
-import { supabase } from '../../lib/supabase';
 import { 
   DollarSign, ShoppingBag, Users, Package,
   TrendingUp, ArrowUpRight, ArrowDownRight
 } from 'lucide-react';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { adminApi, DashboardStats } from '../../services/adminApi';
 import { format } from 'date-fns';
-
-interface DashboardStats {
-  totalRevenue: number;
-  totalOrders: number;
-  totalCustomers: number;
-  totalProducts: number;
-  revenueChange: number;
-  ordersChange: number;
-  customersChange: number;
-  productsChange: number;
-}
 
 const DashboardPage: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
@@ -42,68 +31,22 @@ const DashboardPage: React.FC = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Fetch basic stats
-        const { data: ordersData } = await supabase
-          .from('orders')
-          .select('*');
+        const [
+          dashboardStats,
+          revenueData,
+          ordersByStatus,
+          recentOrders
+        ] = await Promise.all([
+          adminApi.getDashboardStats(),
+          adminApi.getRevenueData(),
+          adminApi.getOrdersByStatus(),
+          adminApi.getRecentOrders()
+        ]);
 
-        const { data: customersData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('role', 'customer');
-
-        const { data: productsData } = await supabase
-          .from('products')
-          .select('*');
-
-        // Calculate stats
-        const totalRevenue = ordersData?.reduce((sum, order) => sum + order.total, 0) || 0;
-        const totalOrders = ordersData?.length || 0;
-        const totalCustomers = customersData?.length || 0;
-        const totalProducts = productsData?.length || 0;
-
-        // Get recent orders
-        const recentOrdersData = ordersData
-          ?.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 5);
-
-        // Calculate orders by status
-        const statusCounts = ordersData?.reduce((acc: any, order) => {
-          acc[order.status] = (acc[order.status] || 0) + 1;
-          return acc;
-        }, {});
-
-        const orderStatusData = Object.entries(statusCounts || {}).map(([status, count]) => ({
-          status,
-          count
-        }));
-
-        // Set all the data
-        setStats({
-          totalRevenue,
-          totalOrders,
-          totalCustomers,
-          totalProducts,
-          revenueChange: 12, // Example value
-          ordersChange: 8,   // Example value
-          customersChange: 15, // Example value
-          productsChange: 5   // Example value
-        });
-
-        setOrdersByStatus(orderStatusData);
-        setRecentOrders(recentOrdersData || []);
-
-        // Generate sample revenue data
-        const last7Days = Array.from({ length: 7 }, (_, i) => {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          return {
-            date: format(date, 'MMM dd'),
-            revenue: Math.floor(Math.random() * 1000) + 500
-          };
-        }).reverse();
-
-        setRevenueData(last7Days);
+        setStats(dashboardStats);
+        setRevenueData(revenueData);
+        setOrdersByStatus(ordersByStatus);
+        setRecentOrders(recentOrders);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
       } finally {
@@ -132,7 +75,7 @@ const DashboardPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">Total Revenue</p>
-              <p className="text-2xl font-bold text-gray-900">${stats.totalRevenue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900">Rs: {stats.totalRevenue.toFixed(2)}</p>
             </div>
             <div className="p-3 bg-green-100 rounded-full">
               <DollarSign className="h-6 w-6 text-green-600" />
@@ -254,30 +197,26 @@ const DashboardPage: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {recentOrders.map((order) => (
-                <tr key={order.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    #{order.id.slice(0, 8)}
+                <tr key={order._id}>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {order._id}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(order.created_at), 'MMM dd, yyyy')}
+                    {new Date(order.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                      ${order.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
+                      ${order.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                        order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
                         'bg-gray-100 text-gray-800'}`}>
                       {order.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    ${order.total.toFixed(2)}
+                    Rs: {order.total.toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <Link
-                      to={`/admin/orders/${order.id}`}
-                      className="text-rose-600 hover:text-rose-900"
-                    >
+                    <Link to={`/admin/orders/${order._id}`} className="text-rose-600 hover:text-rose-900">
                       View
                     </Link>
                   </td>

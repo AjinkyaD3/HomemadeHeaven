@@ -19,8 +19,9 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['user', 'admin'],
-        default: 'user',
+        enum: ['admin', 'customer'],
+        default: 'customer',
+        required: true
     },
     avatarUrl: {
         type: String,
@@ -35,7 +36,7 @@ const userSchema = new mongoose.Schema({
     favorites: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Product'
-    }],
+    }]
 }, {
     timestamps: true,
 });
@@ -60,4 +61,4 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 
 const User = mongoose.model('User', userSchema);
 
-export default User; 
+export default User;

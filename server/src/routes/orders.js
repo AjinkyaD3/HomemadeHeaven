@@ -109,8 +109,8 @@ router.get('/my-orders', auth, async (req, res) => {
 // Create order and initiate payment
 router.post('/create', auth, async (req, res) => {
     try {
-        const { items, totalAmount, deliveryAddress, paymentMethod } = req.body;
-        console.log('Received order creation request:', { items, totalAmount, deliveryAddress, paymentMethod });
+        const { items, subtotal, tax, shipping, discount, shippingAddress, billingAddress, paymentMethod } = req.body;
+        console.log('Received order creation request:', req.body);
 
         // Check if Razorpay is configured
         if (!razorpay) {
@@ -121,25 +121,54 @@ router.post('/create', auth, async (req, res) => {
         }
 
         // Validate required fields
-        if (!items || !Array.isArray(items) || items.length === 0 || !totalAmount || !deliveryAddress) {
-            console.error('Missing required fields:', { items, totalAmount, deliveryAddress });
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            console.error('Missing or invalid items:', items);
             return res.status(400).json({
-                message: 'Missing required fields: items, totalAmount, or deliveryAddress'
+                message: 'Missing or invalid items'
             });
         }
 
+        // Validate products and check stock
+        for (const item of items) {
+            const product = await Product.findById(item.product);
+            if (!product) {
+                return res.status(404).json({
+                    message: `Product ${item.product} not found`
+                });
+            }
+            if (!product.isAvailable) {
+                return res.status(400).json({
+                    message: `Product ${product.name} is not available`
+                });
+            }
+            if (product.stock < item.quantity) {
+                return res.status(400).json({
+                    message: `Not enough stock for ${product.name}. Available: ${product.stock}`
+                });
+            }
+        }
+
+        // Calculate total
+        const total = subtotal + (tax || 0) + (shipping || 0) - (discount || 0);
+
         // Create order in database
         const order = new Order({
-            userId: req.user.id,
-            items,
-            total: totalAmount,
-            subtotal: totalAmount,
-            tax: 0,
-            shipping: 0,
-            shippingAddress: deliveryAddress,
-            billingAddress: deliveryAddress,
+            userId: req.user.userId,
+            items: items.map(item => ({
+                product: item.product,
+                quantity: item.quantity,
+                price: item.price
+            })),
+            subtotal,
+            tax: tax || 0,
+            shipping: shipping || 0,
+            discount: discount || 0,
+            total,
+            shippingAddress,
+            billingAddress: billingAddress || shippingAddress,
             paymentStatus: 'pending',
-            paymentMethod
+            paymentMethod,
+            status: 'pending'
         });
 
         console.log('Saving order to database:', order);
@@ -148,7 +177,7 @@ router.post('/create', auth, async (req, res) => {
         try {
             // Create Razorpay order
             const razorpayOrder = await razorpay.orders.create({
-                amount: Math.round(totalAmount * 100), // Amount in paise, ensure it's rounded
+                amount: Math.round(total * 100), // Amount in paise
                 currency: 'INR',
                 receipt: order._id.toString(),
                 payment_capture: 1
@@ -160,8 +189,13 @@ router.post('/create', auth, async (req, res) => {
             order.razorpayOrderId = razorpayOrder.id;
             await order.save();
 
+            // Populate order details
+            const populatedOrder = await Order.findById(order._id)
+                .populate('items.product')
+                .populate('userId', 'email fullName');
+
             res.status(201).json({
-                order,
+                order: populatedOrder,
                 razorpayOrderId: razorpayOrder.id,
                 key: process.env.RAZORPAY_KEY_ID
             });
@@ -169,10 +203,7 @@ router.post('/create', auth, async (req, res) => {
             console.error('Razorpay order creation failed:', razorpayError);
             // Delete the order from database if Razorpay order creation fails
             await Order.findByIdAndDelete(order._id);
-            res.status(500).json({
-                message: 'Failed to create payment order',
-                error: razorpayError.message
-            });
+            throw razorpayError;
         }
     } catch (error) {
         console.error('Error in order creation:', error);
@@ -295,11 +326,26 @@ router.get('/', [auth, admin], async (req, res) => {
 // Update order status (Admin only)
 router.put('/:id/status', [auth, admin], async (req, res) => {
     try {
-        const { status, note } = req.body;
-        const order = await Order.findById(req.params.id);
+        const { status } = req.body;
+        console.log('Updating order status:', { orderId: req.params.id, newStatus: status });
 
+        if (!status) {
+            return res.status(400).json({ message: 'Status is required' });
+        }
+
+        const order = await Order.findById(req.params.id);
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
+        }
+
+        // Define valid statuses and transitions
+        const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'canceled', 'refunded'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                message: `Invalid status. Must be one of: ${validStatuses.join(', ')}`,
+                currentStatus: order.status,
+                requestedStatus: status
+            });
         }
 
         // Validate status transition
@@ -309,12 +355,16 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
             processing: ['shipped', 'canceled'],
             shipped: ['delivered', 'canceled'],
             delivered: ['refunded'],
-            canceled: ['confirmed']
+            canceled: ['confirmed'],
+            refunded: []
         };
 
         if (!validTransitions[order.status]?.includes(status)) {
             return res.status(400).json({
-                message: `Invalid status transition from ${order.status} to ${status}`
+                message: `Invalid status transition from ${order.status} to ${status}. Valid transitions are: ${validTransitions[order.status]?.join(', ')}`,
+                currentStatus: order.status,
+                requestedStatus: status,
+                validTransitions: validTransitions[order.status]
             });
         }
 
@@ -343,11 +393,13 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
 
         // Update order status
         order.status = status;
-        order.statusHistory.push({
-            status,
-            note,
-            updatedBy: req.user.userId
-        });
+        if (req.body.note) {
+            order.statusHistory.push({
+                status,
+                note: req.body.note,
+                updatedBy: req.user.userId
+            });
+        }
 
         await order.save();
 
@@ -365,17 +417,22 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
 // Get single order
 router.get('/:id', auth, async (req, res) => {
     try {
-        const order = await Order.findOne({
-            _id: req.params.id,
-            userId: req.user.id
-        });
+        const order = await Order.findById(req.params.id)
+            .populate('userId', 'email fullName')
+            .populate('items.product');
 
         if (!order) {
             return res.status(404).json({ message: 'Order not found' });
         }
 
+        // Check if user is admin or order belongs to user
+        if (!req.user.isAdmin && order.userId._id.toString() !== req.user.userId.toString()) {
+            return res.status(403).json({ message: 'Not authorized to view this order' });
+        }
+
         res.json(order);
     } catch (error) {
+        console.error('Error fetching order:', error);
         res.status(500).json({ message: error.message });
     }
 });

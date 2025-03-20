@@ -39,9 +39,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (token) {
       api.getCurrentUser()
         .then(userData => {
+          console.log('Current user data:', userData);
           setUser(userData);
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Error fetching user:', error);
           localStorage.removeItem('token');
         })
         .finally(() => {
@@ -55,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string) => {
     try {
       const { token, user } = await api.login(email, password);
+      console.log('Login response:', { token, user });
       localStorage.setItem('token', token);
       setUser(user);
       
@@ -66,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toast.success('Welcome back!');
       }
     } catch (error) {
+      console.error('Login error:', error);
       toast.error('Invalid credentials');
       throw error;
     }

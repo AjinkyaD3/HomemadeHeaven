@@ -97,7 +97,7 @@ const ProductFormPage = () => {
       });
 
       console.log("Product added:", response.data);
-      navigate("/products");
+      navigate("/shop");
     } catch (error) {
       console.error("Error adding product:", error);
       setError(error.response?.data?.message || "An error occurred.");

@@ -157,7 +157,7 @@ router.post('/reset-password', async (req, res) => {
 // Validate token
 router.get('/validate', auth, async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-password');
+        const user = await User.findById(req.user.userId).select('-password');
         res.json(user);
     } catch (error) {
         console.error('Error validating token:', error);
@@ -168,10 +168,13 @@ router.get('/validate', auth, async (req, res) => {
 // Get current user
 router.get('/me', auth, async (req, res) => {
     try {
+        console.log('Fetching user with ID:', req.user.userId);
         const user = await User.findById(req.user.userId).select('-password');
         if (!user) {
+            console.log('User not found with ID:', req.user.userId);
             return res.status(404).json({ message: 'User not found' });
         }
+        console.log('Found user:', user);
         res.json({
             id: user._id,
             email: user.email,

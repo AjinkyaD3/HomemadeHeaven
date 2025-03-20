@@ -1,45 +1,90 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
-// Add auth token to requests if available
-axios.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Add request interceptor to include token in all requests
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    console.log('Making request to:', config.url);
+    return config;
+  },
+  (error) => {
+    console.error('Request error:', error);
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+// Add response interceptor to handle errors
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('Response error:', error);
+    if (error.response) {
+      // Server responded with error
+      throw new Error(error.response.data.message || 'An error occurred');
+    } else if (error.request) {
+      // Request made but no response
+      throw new Error('No response from server. Please check your connection.');
+    } else {
+      // Something else happened
+      throw new Error('An error occurred. Please try again.');
+    }
+  }
+);
 
 export const api = {
   // Auth endpoints
   register: async (email: string, password: string, fullName: string) => {
-    const response = await axios.post(`${BASE_URL}/auth/register`, { email, password, fullName });
-    return response.data;
+    try {
+      console.log('Making registration request to:', `${BASE_URL}/api/auth/register`);
+      const response = await axios.post(`${BASE_URL}/api/auth/register`, { email, password, fullName });
+      return response.data;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
   },
 
   login: async (email: string, password: string) => {
-    const response = await axios.post(`${BASE_URL}/auth/login`, { email, password });
+    try {
+      console.log('Making login request to:', `${BASE_URL}/api/auth/login`);
+      const response = await axios.post(`${BASE_URL}/api/auth/login`, { email, password });
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+      }
+      return response.data;
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
+  },
+
+  getCurrentUser: async () => {
+    const response = await axios.get(`${BASE_URL}/api/auth/me`);
     return response.data;
   },
 
   verifyEmail: async (token: string) => {
-    const response = await axios.get(`${BASE_URL}/auth/verify/${token}`);
+    const response = await axios.get(`${BASE_URL}/api/auth/verify/${token}`);
     return response.data;
   },
 
   forgotPassword: async (email: string) => {
-    const response = await axios.post(`${BASE_URL}/auth/forgot-password`, { email });
+    const response = await axios.post(`${BASE_URL}/api/auth/forgot-password`, { email });
     return response.data;
   },
 
   resetPassword: async (token: string, newPassword: string) => {
-    const response = await axios.post(`${BASE_URL}/auth/reset-password`, { token, newPassword });
+    const response = await axios.post(`${BASE_URL}/api/auth/reset-password`, { token, newPassword });
     return response.data;
   },
 
   validateToken: async (token: string) => {
-    const response = await axios.get(`${BASE_URL}/auth/validate`, {
+    const response = await axios.get(`${BASE_URL}/api/auth/validate`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -49,27 +94,27 @@ export const api = {
 
   // HTTP Methods
   get: async (endpoint: string) => {
-    const response = await axios.get(`${BASE_URL}${endpoint}`);
+    const response = await axios.get(`${BASE_URL}/api${endpoint}`);
     return response.data;
   },
 
   post: async (endpoint: string, data: any) => {
-    const response = await axios.post(`${BASE_URL}${endpoint}`, data);
+    const response = await axios.post(`${BASE_URL}/api${endpoint}`, data);
     return response.data;
   },
 
   put: async (endpoint: string, data: any) => {
-    const response = await axios.put(`${BASE_URL}${endpoint}`, data);
+    const response = await axios.put(`${BASE_URL}/api${endpoint}`, data);
     return response.data;
   },
 
   patch: async (endpoint: string, data: any) => {
-    const response = await axios.patch(`${BASE_URL}${endpoint}`, data);
+    const response = await axios.patch(`${BASE_URL}/api${endpoint}`, data);
     return response.data;
   },
 
   delete: async (endpoint: string) => {
-    const response = await axios.delete(`${BASE_URL}${endpoint}`);
+    const response = await axios.delete(`${BASE_URL}/api${endpoint}`);
     return response.data;
   },
 
@@ -79,7 +124,7 @@ export const api = {
   },
 
   toggleFavorite: async (productId: string) => {
-    return api.post(`/users/favorites/${productId}`);
+    return api.post(`/users/favorites/${productId}`, { productId });
   },
 
   getFavoriteProducts: async () => {
@@ -122,11 +167,15 @@ export const api = {
   },
 
   getAllOrders: async () => {
-    return api.get('/orders/admin');
+    return api.get('/orders');
+  },
+
+  getOrderById: async (orderId: string) => {
+    return api.get(`/orders/${orderId}`);
   },
 
   updateOrderStatus: async (orderId: string, status: string) => {
-    return api.patch(`/orders/${orderId}/status`, { status });
+    return api.put(`/orders/${orderId}/status`, { status });
   },
 
   // Cart API methods
@@ -138,19 +187,5 @@ export const api = {
     // Clear the token from localStorage
     localStorage.removeItem('token');
     return { success: true };
-  },
-
-  getCurrentUser: async () => {
-    const token = localStorage.getItem('token');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const response = await axios.get(`${BASE_URL}/auth/me`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return response.data;
   },
 };

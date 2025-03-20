@@ -36,10 +36,7 @@ const OrdersPage: React.FC = () => {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        console.log('API object:', api);
-        console.log('getUserOrders method:', api.getUserOrders);
         const response = await api.getUserOrders();
-        console.log('Response:', response);
         setOrders(response);
       } catch (error) {
         console.error('Error fetching orders:', error);
@@ -76,33 +73,28 @@ const OrdersPage: React.FC = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-6">My Orders</h1>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {orders.map((order) => (
-          <div key={order._id} className="bg-white rounded-lg shadow-md p-6">
+          <div key={order._id} className="bg-white rounded-lg shadow p-6">
             <div className="flex justify-between items-start mb-4">
               <div>
+                <p className="text-sm text-gray-500">Order #{order._id.slice(-6)}</p>
                 <p className="text-sm text-gray-500">
-                  Order ID: {order._id}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Placed on: {new Date(order.createdAt).toLocaleDateString()}
+                  {new Date(order.createdAt).toLocaleDateString()}
                 </p>
               </div>
               <div className="text-right">
-                <span className={`px-3 py-1 rounded-full text-sm ${
-                  order.status === 'confirmed' ? 'bg-green-100 text-green-800' :
-                  order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-gray-100 text-gray-800'
+                <p className="font-semibold">₹{order.total}</p>
+                <p className={`text-sm ${
+                  order.status === 'delivered' ? 'text-green-600' :
+                  order.status === 'cancelled' ? 'text-red-600' :
+                  'text-yellow-600'
                 }`}>
                   {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                </span>
-                <p className="text-sm text-gray-500 mt-1">
-                  Payment: {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
                 </p>
               </div>
             </div>
-
-            <div className="space-y-4">
+            <div className="space-y-2">
               {order.items.map((item) => (
                 <div key={item.product._id} className="flex items-center space-x-4">
                   <img
@@ -110,28 +102,19 @@ const OrdersPage: React.FC = () => {
                     alt={item.product.name}
                     className="w-16 h-16 object-cover rounded"
                   />
-                  <div className="flex-1">
-                    <h3 className="font-medium">{item.product.name}</h3>
-                    <p className="text-sm text-gray-500">Quantity: {item.quantity}</p>
-                    <p className="text-sm text-gray-500">Price: ₹{item.price.toFixed(2)}</p>
+                  <div>
+                    <p className="font-medium">{item.product.name}</p>
+                    <p className="text-sm text-gray-500">
+                      Quantity: {item.quantity} × ₹{item.price}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
-
             <div className="mt-4 pt-4 border-t">
-              <div className="flex justify-between items-center">
-                <div>
-                  <p className="text-sm text-gray-500">Shipping Address:</p>
-                  <p className="text-sm">
-                    {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} - {order.shippingAddress.pincode}
-                  </p>
-                  <p className="text-sm">Phone: {order.shippingAddress.phone}</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium">Total: ₹{order.total.toFixed(2)}</p>
-                </div>
-              </div>
+              <p className="text-sm text-gray-500">
+                Shipping Address: {order.shippingAddress.street}, {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.pincode}
+              </p>
             </div>
           </div>
         ))}
