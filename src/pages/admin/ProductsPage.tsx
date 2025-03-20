@@ -27,6 +27,7 @@ interface Product {
   };
   createdAt: string;
   updatedAt: string;
+  imageFile?: File;
 }
 
 const ProductsPage: React.FC = () => {
@@ -111,19 +112,42 @@ const ProductsPage: React.FC = () => {
     }
   };
 
+  // Add new function to handle image file selection
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!editingProduct || !e.target.files || !e.target.files[0]) return;
+
+    const file = e.target.files[0];
+    const imageUrl = URL.createObjectURL(file);
+
+    setEditingProduct(prev => ({
+      ...prev!,
+      image: imageUrl,
+      imageFile: file
+    }));
+  };
+
   // ✅ Handle product update
   const handleUpdate = async () => {
     if (!editingProduct) return;
 
     try {
       const formData = new FormData();
+      
+      // Append all product data except image if no new file
       Object.entries(editingProduct).forEach(([key, value]) => {
+        if (key === 'imageFile') return; // Skip the imageFile property
+        if (key === 'image' && editingProduct.imageFile) return; // Skip image URL if we have a new file
         if (key === 'dimensions') {
           formData.append(key, JSON.stringify(value));
         } else {
           formData.append(key, value.toString());
         }
       });
+
+      // Append the new image file if it exists
+      if (editingProduct.imageFile) {
+        formData.append('image', editingProduct.imageFile);
+      }
 
       await api.updateProduct(editingProduct._id, formData);
       setProducts((prev) =>
@@ -201,16 +225,203 @@ const ProductsPage: React.FC = () => {
 
       {/* ✅ Edit Modal */}
       {isModalOpen && editingProduct && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-          <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-lg">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">Edit Product</h2>
-              <X onClick={closeModal} className="cursor-pointer" />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Edit Product</h2>
+              <button onClick={closeModal} className="text-gray-500 hover:text-gray-700">
+                <X className="h-6 w-6" />
+              </button>
             </div>
-            
-            <input name="name" value={editingProduct.name} onChange={handleEditChange} placeholder="Product Name" className="w-full p-2 border rounded-md" />
-            
-            <button onClick={handleUpdate} className="bg-blue-600 text-white px-4 py-2 mt-4 rounded-md">Update</button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <input
+                    name="name"
+                    value={editingProduct.name}
+                    onChange={handleEditChange}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <textarea
+                    name="description"
+                    value={editingProduct.description}
+                    onChange={handleEditChange}
+                    rows={4}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <input
+                    name="category"
+                    value={editingProduct.category}
+                    onChange={handleEditChange}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
+                  <input
+                    type="number"
+                    name="price"
+                    value={editingProduct.price}
+                    onChange={handleEditChange}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={editingProduct.stock}
+                    onChange={handleEditChange}
+                    className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Product Image</label>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-4">
+                      <img
+                        src={editingProduct.image}
+                        alt={editingProduct.name}
+                        className="h-32 w-32 object-cover rounded-md border"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/placeholder-image.jpg';
+                        }}
+                      />
+                      <div className="flex-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Current Image</label>
+                        <p className="text-sm text-gray-500 truncate">{editingProduct.image}</p>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Upload New Image</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="block w-full text-sm text-gray-500
+                          file:mr-4 file:py-2 file:px-4
+                          file:rounded-md file:border-0
+                          file:text-sm file:font-semibold
+                          file:bg-rose-50 file:text-rose-700
+                          hover:file:bg-rose-100
+                          focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Width</label>
+                    <input
+                      type="number"
+                      name="dimensions.width"
+                      value={editingProduct.dimensions.width}
+                      onChange={handleEditChange}
+                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Height</label>
+                    <input
+                      type="number"
+                      name="dimensions.height"
+                      value={editingProduct.dimensions.height}
+                      onChange={handleEditChange}
+                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Depth</label>
+                    <input
+                      type="number"
+                      name="dimensions.depth"
+                      value={editingProduct.dimensions.depth}
+                      onChange={handleEditChange}
+                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+                    <select
+                      name="dimensions.unit"
+                      value={editingProduct.dimensions.unit}
+                      onChange={handleEditChange}
+                      className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
+                    >
+                      <option value="cm">Centimeters</option>
+                      <option value="in">Inches</option>
+                      <option value="m">Meters</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="customizable"
+                      checked={editingProduct.customizable}
+                      onChange={handleEditChange}
+                      className="h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">Customizable</label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isAvailable"
+                      checked={editingProduct.isAvailable}
+                      onChange={handleEditChange}
+                      className="h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">Available</label>
+                  </div>
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isFeatured"
+                      checked={editingProduct.isFeatured}
+                      onChange={handleEditChange}
+                      className="h-4 w-4 text-rose-600 focus:ring-rose-500 border-gray-300 rounded"
+                    />
+                    <label className="ml-2 text-sm text-gray-700">Featured</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end space-x-4">
+              <button
+                onClick={closeModal}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                className="px-4 py-2 bg-rose-600 text-white rounded-md hover:bg-rose-700"
+              >
+                Update Product
+              </button>
+            </div>
           </div>
         </div>
       )}

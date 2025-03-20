@@ -142,15 +142,15 @@ export const api = {
 
   // Admin API methods
   createProduct: async (productData: FormData) => {
-    return api.post('/admin/products', productData);
+    return api.post('/products', productData);
   },
 
   updateProduct: async (id: string, productData: FormData) => {
-    return api.put(`/admin/products/${id}`, productData);
+    return api.put(`/products/${id}`, productData);
   },
 
   deleteProduct: async (id: string) => {
-    return api.delete(`/admin/products/${id}`);
+    return api.delete(`/products/${id}`);
   },
 
   // Order endpoints
