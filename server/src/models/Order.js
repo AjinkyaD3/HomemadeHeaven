@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
-    userId: {
+    user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true,
@@ -104,7 +104,7 @@ orderSchema.pre('save', function (next) {
         this.statusHistory.push({
             status: this.status,
             timestamp: new Date(),
-            updatedBy: this.userId,
+            updatedBy: this.user,
         });
     }
     next();

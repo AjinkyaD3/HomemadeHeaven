@@ -4,7 +4,7 @@ export interface Product {
   description: string;
   price: number;
   image: string;
-  category: 'frame' | 'gift';
+  category: 'frame' | 'gift' | 'gift-hamper' | 'bracelet' | 'phoneCase';
   stock: number;
   isAvailable?: boolean;
   isFeatured?: boolean;

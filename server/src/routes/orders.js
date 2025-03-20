@@ -72,7 +72,7 @@ router.post('/', auth, async (req, res) => {
 router.get('/my-orders', auth, async (req, res) => {
     try {
         const { status, sort, startDate, endDate } = req.query;
-        let query = { userId: req.user.id };
+        let query = { user: req.user.id };
 
         // Apply status filter
         if (status) {
@@ -153,7 +153,7 @@ router.post('/create', auth, async (req, res) => {
 
         // Create order in database
         const order = new Order({
-            userId: req.user.userId,
+            user: req.user.id,
             items: items.map(item => ({
                 product: item.product,
                 quantity: item.quantity,
@@ -192,7 +192,7 @@ router.post('/create', auth, async (req, res) => {
             // Populate order details
             const populatedOrder = await Order.findById(order._id)
                 .populate('items.product')
-                .populate('userId', 'email fullName');
+                .populate('user', 'email fullName');
 
             res.status(201).json({
                 order: populatedOrder,
@@ -298,7 +298,7 @@ router.get('/', [auth, admin], async (req, res) => {
             });
             const userIds = users.map(user => user._id);
             query.$or = [
-                { userId: { $in: userIds } },
+                { user: { $in: userIds } },
                 { 'shippingAddress.street': { $regex: search, $options: 'i' } },
                 { 'shippingAddress.city': { $regex: search, $options: 'i' } }
             ];
@@ -311,11 +311,13 @@ router.get('/', [auth, admin], async (req, res) => {
         if (sort === 'amount_asc') sortObj.total = 1;
         if (sort === 'amount_desc') sortObj.total = -1;
 
+        console.log('Query:', query);
         const orders = await Order.find(query)
-            .populate('userId', 'email fullName')
+            .populate('user', 'email fullName')
             .populate('items.product')
             .sort(sortObj || { createdAt: -1 });
 
+        console.log('Found orders:', orders.length);
         res.json(orders);
     } catch (error) {
         console.error('Error fetching orders:', error);
@@ -397,14 +399,14 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
             order.statusHistory.push({
                 status,
                 note: req.body.note,
-                updatedBy: req.user.userId
+                updatedBy: req.user.id
             });
         }
 
         await order.save();
 
         const updatedOrder = await Order.findById(order._id)
-            .populate('userId', 'email fullName')
+            .populate('user', 'email fullName')
             .populate('items.product');
 
         res.json(updatedOrder);
@@ -418,7 +420,7 @@ router.put('/:id/status', [auth, admin], async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
     try {
         const order = await Order.findById(req.params.id)
-            .populate('userId', 'email fullName')
+            .populate('user', 'email fullName')
             .populate('items.product');
 
         if (!order) {
@@ -426,7 +428,8 @@ router.get('/:id', auth, async (req, res) => {
         }
 
         // Check if user is admin or order belongs to user
-        if (!req.user.isAdmin && order.userId._id.toString() !== req.user.userId.toString()) {
+        const userId = req.user.id || req.user.userId;
+        if (!req.user.isAdmin && order.user && order.user._id.toString() !== userId.toString()) {
             return res.status(403).json({ message: 'Not authorized to view this order' });
         }
 

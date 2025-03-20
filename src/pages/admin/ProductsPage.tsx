@@ -41,6 +41,9 @@ const ProductsPage: React.FC = () => {
 
   const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+  // Add predefined categories
+  const predefinedCategories = ['frame', 'gift', 'gift-hamper', 'bracelet', 'phoneCase'];
+
   // ✅ Fetch products
   useEffect(() => {
     const fetchProducts = async () => {
@@ -174,18 +177,42 @@ const ProductsPage: React.FC = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Products</h1>
-        <Link
-          to="/admin/products/new"
-          className="bg-rose-600 text-white px-4 py-2 rounded-md"
-        >
-          <Plus className="inline-block mr-2" />
-          Add New Product
-        </Link>
+        <div className="flex space-x-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+            />
+          </div>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-rose-500"
+          >
+            <option value="all">All Categories</option>
+            {predefinedCategories.map(category => (
+              <option key={category} value={category}>
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </option>
+            ))}
+          </select>
+          <Link
+            to="/admin/products/new"
+            className="bg-rose-600 text-white px-4 py-2 rounded-md flex items-center"
+          >
+            <Plus className="mr-2" />
+            Add New Product
+          </Link>
+        </div>
       </div>
 
       {/* ✅ Loading spinner */}
       {isLoading ? (
-        <LoadingSpinner size="large" />
+        <LoadingSpinner size="large" overlay />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredProducts.map((product) => (
@@ -259,12 +286,18 @@ const ProductsPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <input
+                  <select
                     name="category"
                     value={editingProduct.category}
                     onChange={handleEditChange}
                     className="w-full p-2 border rounded-md focus:ring-2 focus:ring-rose-500"
-                  />
+                  >
+                    {predefinedCategories.map(category => (
+                      <option key={category} value={category}>
+                        {category.charAt(0).toUpperCase() + category.slice(1)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

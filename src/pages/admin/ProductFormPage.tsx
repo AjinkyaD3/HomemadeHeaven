@@ -2,9 +2,32 @@
 import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Product } from "../../types";
+import LoadingSpinner from "../../components/ui/LoadingSpinner";
+
+interface FormData {
+  name: string;
+  description: string;
+  price: string;
+  image: File | null;
+  category: Product['category'];
+  stock: string;
+  rating: string;
+  numReviews: string;
+  materials: string;
+  dimensions: {
+    width: string;
+    height: string;
+    depth: string;
+    unit: 'cm' | 'in';
+  };
+  isFeatured: boolean;
+  customizable: boolean;
+  isAvailable: boolean;
+}
 
 const ProductFormPage = () => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: "",
     description: "",
     price: "",
@@ -26,11 +49,15 @@ const ProductFormPage = () => {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  // Add predefined categories
+  const categories: Product['category'][] = ['frame', 'gift', 'gift-hamper', 'bracelet', 'phoneCase'];
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type } = e.target;
+    const checked = (e.target as HTMLInputElement).checked;
 
     if (name.includes("dimensions.")) {
       const dimensionField = name.split(".")[1];
@@ -51,14 +78,16 @@ const ProductFormPage = () => {
     }
   };
 
-  const handleFileChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      image: e.target.files[0],
-    }));
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFormData((prev) => ({
+        ...prev,
+        image: e.target.files![0],
+      }));
+    }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -67,14 +96,16 @@ const ProductFormPage = () => {
     productData.append("name", formData.name);
     productData.append("description", formData.description);
     productData.append("price", formData.price);
-    productData.append("image", formData.image);
+    if (formData.image) {
+      productData.append("image", formData.image);
+    }
     productData.append("category", formData.category);
     productData.append("stock", formData.stock);
     productData.append("rating", formData.rating);
     productData.append("numReviews", formData.numReviews);
-    productData.append("isFeatured", formData.isFeatured);
-    productData.append("customizable", formData.customizable);
-    productData.append("isAvailable", formData.isAvailable);
+    productData.append("isFeatured", String(formData.isFeatured));
+    productData.append("customizable", String(formData.customizable));
+    productData.append("isAvailable", String(formData.isAvailable));
     
     // Materials handling (comma-separated string)
     formData.materials
@@ -88,7 +119,7 @@ const ProductFormPage = () => {
     productData.append("dimensions[unit]", formData.dimensions.unit);
 
     try {
-      const token = localStorage.getItem("token"); // Add your auth token retrieval logic
+      const token = localStorage.getItem("token");
       const response = await axios.post("http://localhost:5000/api/products", productData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -98,9 +129,9 @@ const ProductFormPage = () => {
 
       console.log("Product added:", response.data);
       navigate("/shop");
-    } catch (error) {
-      console.error("Error adding product:", error);
-      setError(error.response?.data?.message || "An error occurred.");
+    } catch (err) {
+      console.error("Error adding product:", err);
+      setError(err instanceof Error ? err.message : "An error occurred.");
     } finally {
       setLoading(false);
     }
@@ -108,6 +139,7 @@ const ProductFormPage = () => {
 
   return (
     <div className="container mx-auto p-8">
+      {loading && <LoadingSpinner overlay />}
       <h2 className="text-2xl font-bold mb-6">Add New Product</h2>
       {error && <p className="text-red-500">{error}</p>}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -158,9 +190,17 @@ const ProductFormPage = () => {
 
         <div className="flex flex-col">
           <label className="font-semibold">Category:</label>
-          <select name="category" value={formData.category} onChange={handleChange} className="border p-2 rounded">
-            <option value="frame">Frame</option>
-            <option value="gift">Gift</option>
+          <select 
+            name="category" 
+            value={formData.category} 
+            onChange={handleChange} 
+            className="border p-2 rounded"
+          >
+            {categories.map(cat => (
+              <option key={cat} value={cat}>
+                {cat.charAt(0).toUpperCase() + cat.slice(1).replace(/([A-Z])/g, ' $1')}
+              </option>
+            ))}
           </select>
         </div>
 

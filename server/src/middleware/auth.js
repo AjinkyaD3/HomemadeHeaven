@@ -36,6 +36,7 @@ export default function (req, res, next) {
 
         // Add user info to request
         req.user = {
+            id: decoded.userId,
             userId: decoded.userId,
             role: decoded.role || 'customer'
         };
